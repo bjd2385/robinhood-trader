@@ -1,17 +1,12 @@
-#! /usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Manage my portfolio of Robinhood stocks and automate buys and sells.
 """
 
-from typing import Dict, Tuple
+from general import read_credentials
+
+from typing import Tuple
 
 from pyrh import Robinhood
-from influxdb import InfluxDBClient
-from datetime import datetime
-from json import loads, dumps
-from time import sleep
 
 
 class TheHood:
@@ -50,67 +45,3 @@ class TheHood:
             buy_price = float(stock['average_buy_price'])
             potential_sum += quantity * buy_price
         return potential_sum
-
-
-def read_credentials(filename: str) -> Dict[str, str]:
-    """
-    Get the creds for an account from a JSON-formatted file.
-
-    Args:
-        filename: the file (with path) from which to read the credentials.
-
-    Returns:
-        The file's contents as a dictionary.
-    """
-    with open(filename, 'r') as fh:
-        return loads(fh.read())
-
-
-def publish_cache(js: dict, filename: str) -> None:
-    """
-    Publish some data to a cache file on the filesystem. This function would only need
-    to be called if you were looking to call a publication request to the db from
-    another program and you populated it here.
-
-    Args:
-        js: the data you wish to publish as JSON to the cache (must be of dict type).
-        filename: the filename of the cache file to be updated.
-
-    Returns:
-        None, nothing.
-    """
-    # TODO: Since I'm actually going to publish this data right within Python via
-    #       influxdb client, I'll skip this for now.
-    pass
-
-
-def main() -> None:
-    th = TheHood(credentials='rh_credentials.json')
-    influx_client = InfluxDBClient(**read_credentials('influxdb_credentials.json'))
-
-    # Main loop.
-    while True:
-        potential = th.account_potential()
-        today_close, prev_close, curr_val = th.total_dollar_equity()
-        measurements = [
-            {
-                "measurement": "rh_portfolio",
-                "tags": {
-                    "vmhost": "1"
-                },
-                "time": datetime.utcnow().strftime(format='%Y-%m-%dT%H:%M:%S') + 'Z',
-                "fields": {
-                    "potential": round(potential, 2),
-                    "today_close": round(today_close, 2),
-                    "previous_close": round(prev_close, 2),
-                    "current_value": round(curr_val, 2)
-                }
-            },
-        ]
-        print(dumps(measurements))
-        influx_client.write_points(measurements)
-        sleep(60)
-
-
-if __name__ == '__main__':
-    main()

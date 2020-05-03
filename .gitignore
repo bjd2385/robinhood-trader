@@ -3,3 +3,4 @@ venv/*
 .idea/*
 rh_credentials.json
 influxdb_credentials.json
+thunderbird_conf.json
