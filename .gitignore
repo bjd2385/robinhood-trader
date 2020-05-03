@@ -4,3 +4,4 @@ venv/*
 rh_credentials.json
 influxdb_credentials.json
 thunderbird_conf.json
+.env

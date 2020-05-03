@@ -7,13 +7,11 @@ from influx import InfluxPublisher
 
 from time import sleep
 from datetime import datetime
-
-
-# TODO: adda  dotenv impl.
+from settings import env
 
 
 def main() -> None:
-    th = TheHood(credentials='rh_credentials.json')
+    th = TheHood(credentials=env['ROBINHOOD_CREDS'])
 
     # Main loop.
     while True:
@@ -36,7 +34,7 @@ def main() -> None:
             },
         ]
 
-        with InfluxPublisher('influxdb_credentials.json') as infpub:
+        with InfluxPublisher(env['INFLUXDB_CREDS']) as infpub:
             infpub.publish(measurements)
 
         sleep(60)
