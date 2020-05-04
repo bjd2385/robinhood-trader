@@ -55,22 +55,38 @@ def main() -> None:
         today_close, prev_close, curr_val = th.total_dollar_equity()
 
         with InfluxPublisher(env['INFLUXDB_CREDS']) as infpub:
-            infpub.publish(
-                package_measurements(
-                    'rh_portfolio',
-                    [
-                        {
-                            "potential": round(potential, 2),
-                            "today_close": round(today_close, 2),
-                            "previous_close": round(prev_close, 2),
-                            "current_value": round(curr_val, 2)
-                        }
-                    ],
-                    {'vmhost': '1'}
+            if curr_val != 0.0:
+                infpub.publish(
+                    package_measurements(
+                        'rh_portfolio',
+                        [
+                            {
+                                "potential": round(potential, 2),
+                                "today_close": round(today_close, 2),
+                                "previous_close": round(prev_close, 2),
+                                "current_value": round(curr_val, 2)
+                            }
+                        ],
+                        {'vmhost': '1'}
+                    )
                 )
-            )
+            else:
+                infpub.publish(
+                    package_measurements(
+                        'rh_portfolio',
+                        [
+                            {
+                                "potential": round(potential, 2),
+                                "today_close": round(today_close, 2),
+                                "previous_close": round(prev_close, 2),
+                                # Skip curr_val, or extended hours equity, until it's nonzero.
+                            }
+                        ],
+                        {'vmhost': '1'}
+                    )
+                )
 
-        sleep(60)
+        sleep(env['SLEEP'])
 
 
 if __name__ == '__main__':

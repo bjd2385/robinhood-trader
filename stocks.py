@@ -4,7 +4,7 @@ Manage my portfolio of Robinhood stocks and automate buys and sells.
 
 from general import read_credentials
 
-from typing import Tuple
+from typing import Tuple, Union
 
 from pyrh import Robinhood
 
@@ -17,6 +17,30 @@ class TheHood:
     def __init__(self, credentials: str) -> None:
         self._rh = Robinhood()
         self._rh.login(**read_credentials(credentials))
+        self._ext_equity = 0.0
+
+    @property
+    def extended_hours_equity(self) -> float:
+        """
+        Keep track of the extended equity and prevent its setting to NoneType.
+
+        Returns:
+            The current extended equity.
+        """
+        return self._ext_equity
+
+    @extended_hours_equity.setter
+    def extended_hours_equity(self, new_equity: Union[float, None]) -> None:
+        """
+        Keep track of the extended equity and prevent its setting to NoneType.
+
+        Returns:
+            The current extended equity.
+        """
+        if type(new_equity) is not float:
+            pass
+        else:
+            self._ext_equity = new_equity
 
     def total_dollar_equity(self) -> Tuple[float, float, float]:
         """
@@ -26,7 +50,8 @@ class TheHood:
             A tuple containing today's closing equity in my account, followed by the
             previous day's closing value and the current extended / after-hours value.
         """
-        return self._rh.equity(), self._rh.equity_previous_close(), self._rh.extended_hours_equity()
+        self.extended_hours_equity = self._rh.extended_hours_equity()
+        return self._rh.equity(), self._rh.equity_previous_close(), self.extended_hours_equity
 
     def account_potential(self) -> float:
         """
