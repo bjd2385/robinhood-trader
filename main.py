@@ -33,7 +33,7 @@ def package_measurements(name: str, fields: List[Dict[str, Any]], identifier: Di
         identifier: additional tags to add to the measurements.
 
     Returns:
-
+        A measureT-type / structured object for publication to an Influxdb.
     """
     measurements = []
     for measures in fields:

@@ -4,9 +4,38 @@ Manage my portfolio of Robinhood stocks and automate buys and sells.
 
 from general import read_credentials
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Callable, Any
 
 from pyrh import Robinhood
+from requests.exceptions import HTTPError
+from functools import wraps
+
+
+__all__ = [
+    'TheHood',
+]
+
+
+def retry(f: Callable, tries: int =3) -> Callable:
+    """
+    Retry a Robinhood requests-based call after getting 500s.
+
+    Args:
+        f: the method we're to decorate and retry.
+        tries: the number of attempts to make at logging back in before we simply
+               give up until the next iteration.
+
+    Returns:
+        The same method called after logging back into the Robinhood API.
+    """
+    @wraps(f)
+    def new_f(*args: Any, **kwargs: Any) -> Any:
+        for _ in range(tries):
+            try:
+                return f(*args, **kwargs)
+            except HTTPError:
+                pass
+    return new_f
 
 
 class TheHood:
@@ -14,10 +43,12 @@ class TheHood:
     A wrapper for producing the kinds of transactions and calls on my Robinhood
     portfolio I'm looking for.
     """
-    def __init__(self, credentials: str) -> None:
+    def __init__(self, credentials: str, connect_retries: int =3) -> None:
+        self._ext_equity = 0.0
+
+        # Set up connection to Robinhood's API.
         self._rh = Robinhood()
         self._rh.login(**read_credentials(credentials))
-        self._ext_equity = 0.0
 
     @property
     def extended_hours_equity(self) -> float:
@@ -42,6 +73,7 @@ class TheHood:
         else:
             self._ext_equity = new_equity
 
+    @retry
     def total_dollar_equity(self) -> Tuple[float, float, float]:
         """
         Get values that explain the current monetary value of my account.
@@ -53,6 +85,7 @@ class TheHood:
         self.extended_hours_equity = self._rh.extended_hours_equity()
         return self._rh.equity(), self._rh.equity_previous_close(), self.extended_hours_equity
 
+    @retry
     def account_potential(self) -> float:
         """
         Get the total account potential for comparison against the total account value.
