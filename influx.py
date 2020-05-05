@@ -60,15 +60,6 @@ class DaemonInfluxPublisher:
         # Create a client connection, with which we intend to publish measurements.
         self._client = InfluxDBClient(**read_credentials(credentials))
 
-    def _influx_client_connect(self) -> None:
-        """
-        Connect or reconnect to the Influxdb.
-
-        Returns:
-            Nothing.
-        """
-
-
     def publish(self, js: measureT) -> None:
         """
         Add a metric to the queue for the daemon to flush periodically. I've kept the
@@ -134,6 +125,7 @@ class DaemonInfluxPublisher:
                 # If the ending queue size is the same as we started, just wait until
                 # the next publish cycle to try again, they're obviously failing.
                 if self.queue.qsize() == q_size_start:
+                    print('q_size_start was the same, returning')
                     return None
 
     def t_publish(self) -> None:
