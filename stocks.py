@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-def retry(f: Callable, tries: int =3) -> Callable:
+def retry(f: Callable, tries: int =3, debug: bool =False) -> Callable:
     """
     Retry a Robinhood requests-based call after getting 500s.
 
@@ -34,7 +34,8 @@ def retry(f: Callable, tries: int =3) -> Callable:
             try:
                 return f(*args, **kwargs)
             except HTTPError:
-                pass
+                if debug:
+                    print('Robinhood request failed, retrying')
     return new_f
 
 
@@ -43,7 +44,7 @@ class TheHood:
     A wrapper for producing the kinds of transactions and calls on my Robinhood
     portfolio I'm looking for.
     """
-    def __init__(self, credentials: str, connect_retries: int =3) -> None:
+    def __init__(self, credentials: str) -> None:
         self._ext_equity = 0.0
 
         # Set up connection to Robinhood's API.

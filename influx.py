@@ -21,6 +21,8 @@ measureT = List[Dict[str, Union[str, Dict[str, Union[Dict[str, float], str]]]]]
 class InfluxPublisher(AbstractContextManager):
     """
     Manage the publication of data points to Influxdb.
+
+    Synchronous and potentially lossy method of publishing points via InfluxDBClient.
     """
     def __init__(self, credentials: str) -> None:
         self._client = InfluxDBClient(**read_credentials(credentials))
@@ -85,7 +87,6 @@ class DaemonInfluxPublisher:
         """
         while True:
             if not self.queue.empty():
-                print(self.queue.qsize())
                 # No reason to create more threads than necessary, here.
                 if env['MAX_THREADS'] > self.queue.qsize():
                     self._n_threads = self.queue.qsize()
@@ -97,7 +98,6 @@ class DaemonInfluxPublisher:
                     remainder = self.queue.qsize() % self._n_threads
 
                 self._spawn_threads(division, remainder)
-            print('Daemon loop')
             sleep(env['DAEMON_WAKEUP'])
 
     def _spawn_threads(self, division: int, remainder: int =0) -> None:
@@ -119,13 +119,11 @@ class DaemonInfluxPublisher:
                     new_thread = Thread(target=self.t_publish, args=())
                     new_thread.start()
                     threads.append(new_thread)
-                print(threads)
                 for thread in threads:
                     thread.join()
                 # If the ending queue size is the same as we started, just wait until
                 # the next publish cycle to try again, they're obviously failing.
                 if self.queue.qsize() == q_size_start:
-                    print('q_size_start was the same, returning')
                     return None
 
     def t_publish(self) -> None:
