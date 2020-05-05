@@ -9,9 +9,10 @@ from typing import List, Dict, Union, Any
 
 from influxdb import InfluxDBClient
 from contextlib import AbstractContextManager
-from queue import Queue
+from queue import LifoQueue
 from threading import Thread
 from time import sleep
+from requests.exceptions import ConnectionError
 
 
 measureT = List[Dict[str, Union[str, Dict[str, Union[Dict[str, float], str]]]]]
@@ -48,7 +49,8 @@ class DaemonInfluxPublisher:
     Provide an interface to a daemon that periodically flushes a queue of data points.
     """
     def __init__(self, credentials: str) -> None:
-        self.queue = Queue(maxsize=env['QUEUE_MAX'])
+        self.queue = LifoQueue(maxsize=env['QUEUE_MAX'])
+        self._n_threads = 0
 
         # Start a non-blocking daemon thread that's created and periodically reads
         # from the queue, as well as spins up additional threads.
@@ -57,6 +59,15 @@ class DaemonInfluxPublisher:
 
         # Create a client connection, with which we intend to publish measurements.
         self._client = InfluxDBClient(**read_credentials(credentials))
+
+    def _influx_client_connect(self) -> None:
+        """
+        Connect or reconnect to the Influxdb.
+
+        Returns:
+            Nothing.
+        """
+
 
     def publish(self, js: measureT) -> None:
         """
@@ -76,37 +87,71 @@ class DaemonInfluxPublisher:
         'Daemonized' publisher that has the ability to spin up other threads.
         Periodically wakes up and tries to empty its queue of measurements.
 
+        This method is not meant to be called directly.
+
         Returns:
             Nothing.
         """
-        def t_publish(p: measureT) -> None:
-            self._client.write_points(p)
-
         while True:
             if not self.queue.empty():
                 print(self.queue.qsize())
                 # No reason to create more threads than necessary, here.
                 if env['MAX_THREADS'] > self.queue.qsize():
-                    n_threads = self.queue.qsize()
-                    mod = 1
+                    self._n_threads = self.queue.qsize()
+                    division = 1
+                    remainder = 0
                 else:
-                    n_threads = env['MAX_THREADS']
-                    mod = self.queue.qsize() % n_threads
+                    self._n_threads = env['MAX_THREADS']
+                    division = self.queue.qsize() // self._n_threads
+                    remainder = self.queue.qsize() % self._n_threads
 
-                # TODO: figure out what to do with remainder
-                # Try to drain the entire queue of measurements.
-                for _ in range(mod):
-                    threads = []
-                    for _ in range(n_threads):
-                        measurements = self.queue.get()
-                        new_thread = Thread(target=t_publish, args=(measurements,), daemon=False)
-                        new_thread.start()
-                        threads.append(new_thread)
-                    print(threads)
-                    for thread in threads:
-                        thread.join()
+                self._spawn_threads(division, remainder)
             print('Daemon loop')
             sleep(env['DAEMON_WAKEUP'])
+
+    def _spawn_threads(self, division: int, remainder: int =0) -> None:
+        """
+        Make publication threads, and return if there's an error during the request.
+
+        Args:
+            division: number of thread creation/join cycles to make during drain.
+            remainder: number of threads to create in the very last cycle.
+
+        Returns:
+            Nothing.
+        """
+        for _i in [division, remainder]:
+            for _ in range(_i):
+                q_size_start = self.queue.qsize()
+                threads = []
+                for _ in range(self._n_threads):
+                    new_thread = Thread(target=self.t_publish, args=())
+                    new_thread.start()
+                    threads.append(new_thread)
+                print(threads)
+                for thread in threads:
+                    thread.join()
+                # If the ending queue size is the same as we started, just wait until
+                # the next publish cycle to try again, they're obviously failing.
+                if self.queue.qsize() == q_size_start:
+                    return None
+
+    def t_publish(self) -> None:
+        """
+        Publish a list of measurements to the open client connection on an influxdb.
+
+        Args:
+            p: the measures to publish.
+
+        Returns:
+            Nothing.
+        """
+        p: measureT = self.queue.get()
+        try:
+            self._client.write_points(p)
+        except ConnectionError:
+            # Just put the item back on the queue lol.
+            self.queue.put(p)
 
     def __enter__(self) -> 'DaemonInfluxPublisher':
         return self
