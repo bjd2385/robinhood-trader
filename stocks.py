@@ -8,6 +8,7 @@ from typing import Tuple, Union, Callable, Any
 
 from pyrh import Robinhood
 from requests.exceptions import HTTPError
+from json.decoder import JSONDecodeError
 from functools import wraps
 
 
@@ -16,7 +17,7 @@ __all__ = [
 ]
 
 
-def retry(f: Callable, tries: int =3, debug: bool =False) -> Callable:
+def retry(f: Callable, tries: int =3, debug: bool =True) -> Callable:
     """
     Retry a Robinhood requests-based call after getting 500s.
 
@@ -24,6 +25,7 @@ def retry(f: Callable, tries: int =3, debug: bool =False) -> Callable:
         f: the method we're to decorate and retry.
         tries: the number of attempts to make at logging back in before we simply
                give up until the next iteration.
+        debug: print information about the errors received on requests.
 
     Returns:
         The same method called after logging back into the Robinhood API.
@@ -36,6 +38,9 @@ def retry(f: Callable, tries: int =3, debug: bool =False) -> Callable:
             except HTTPError:
                 if debug:
                     print('Robinhood request failed, retrying')
+            except JSONDecodeError:
+                if debug:
+                    print('Robinhood request did not see appropriate JSON, retrying')
     return new_f
 
 
