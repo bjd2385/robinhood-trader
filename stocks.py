@@ -102,7 +102,7 @@ class TheHood:
             A float representing the account potential.
         """
         stocks = self._rh.securities_owned()['results']
-        potential_sum = 0.0
+        potential_sum = float(self._rh.portfolios()['withdrawable_amount'])
         for stock in stocks:
             # Make quantity a float as the API may change when I buy fractional shares.
             quantity = float(stock['quantity'])
