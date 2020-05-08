@@ -10,6 +10,7 @@ from pyrh import Robinhood
 from requests.exceptions import HTTPError
 from json.decoder import JSONDecodeError
 from functools import wraps
+from datetime import datetime
 
 
 __all__ = [
@@ -111,9 +112,13 @@ class TheHood:
         return potential_sum
 
     @retry
-    def dividend_payments(self) -> float:
+    def dividend_payments(self, since: str ='') -> float:
         """
         If there are dividend payments, I want to graph a sum in Grafana.
+
+        Args:
+            since: the date since we should allow the summation of dividends. For
+                   instance, you may wish to set this to the past year.
 
         Returns:
             A float representing the sum of dividend payments to my account.
@@ -122,5 +127,7 @@ class TheHood:
         dividend_sum = 0.0
         for dividend in dividends:
             if dividend['state'] == 'paid':
+                if since and not (datetime.fromisoformat(dividend['paid_at'][:-1]) > datetime.fromisoformat(since)):
+                    continue
                 dividend_sum += float(dividend['amount'])
         return dividend_sum

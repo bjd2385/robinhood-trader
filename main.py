@@ -16,7 +16,7 @@ from influx import InfluxPublisher, DaemonInfluxPublisher
 from typing import Dict, Any, List, Union
 
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from settings import env
 
 
@@ -56,7 +56,10 @@ def main() -> None:
         while True:
             potential = th.account_potential()
             today_close, prev_close, curr_val = th.total_dollar_equity()
-            dividend_sum = th.dividend_payments()
+
+            # Get the total dividend payment sum for the past year.
+            dividend_sum = th.dividend_payments(since=datetime.isoformat(datetime.now() - timedelta(days=365)))
+            
             if curr_val != 0.0:
                 infpub.publish(
                     package_measurements(
