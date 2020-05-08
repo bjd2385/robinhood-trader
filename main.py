@@ -56,6 +56,7 @@ def main() -> None:
         while True:
             potential = th.account_potential()
             today_close, prev_close, curr_val = th.total_dollar_equity()
+            dividend_sum = th.dividend_payments()
             if curr_val != 0.0:
                 infpub.publish(
                     package_measurements(
@@ -65,7 +66,8 @@ def main() -> None:
                                 "potential": round(potential, 2),
                                 "today_close": round(today_close, 2),
                                 "previous_close": round(prev_close, 2),
-                                "current_value": round(curr_val, 2)
+                                "current_value": round(curr_val, 2),
+                                "dividend_payment_sum": round(dividend_sum, 2)
                             }
                         ],
                         {'vmhost': '1'}
@@ -81,6 +83,7 @@ def main() -> None:
                                 "today_close": round(today_close, 2),
                                 "previous_close": round(prev_close, 2),
                                 # Skip curr_val, or extended hours equity, until it's nonzero.
+                                "dividend_payment_sum": round(dividend_sum, 2)
                             }
                         ],
                         {'vmhost': '1'}

@@ -4,7 +4,7 @@ Manage my portfolio of Robinhood stocks and automate buys and sells.
 
 from general import read_credentials
 
-from typing import Tuple, Union, Callable, Any
+from typing import Tuple, Union, Callable, Any, Dict, Optional, List
 
 from pyrh import Robinhood
 from requests.exceptions import HTTPError
@@ -109,3 +109,18 @@ class TheHood:
             buy_price = float(stock['average_buy_price'])
             potential_sum += quantity * buy_price
         return potential_sum
+
+    @retry
+    def dividend_payments(self) -> float:
+        """
+        If there are dividend payments, I want to graph a sum in Grafana.
+
+        Returns:
+            A float representing the sum of dividend payments to my account.
+        """
+        dividends: Dict = self._rh.dividends()['results']
+        dividend_sum = 0.0
+        for dividend in dividends:
+            if dividend['state'] == 'paid':
+                dividend_sum += float(dividend['amount'])
+        return dividend_sum
